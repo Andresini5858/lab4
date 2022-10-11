@@ -30,26 +30,52 @@
 
 int bandera=0;
 int bandera1=0;
+int dis=0;
+unsigned char nums[] = {
+    0b00111111, //0
+    0b00000110, //1
+    0b01011011, //2
+    0b01001111, //3
+    0b01100110, //4
+    0b01101101, //5 
+    0b01111101, //6
+    0b00000111, //7
+    0b01111111, //8
+    0b01100111, //9
+    0b01110111, //A
+    0b01111100, //B
+    0b00111001, //C
+    0b01011110, //D
+    0b01111001, //E
+    0b01110001, //F
+};
+
+unsigned int H1=0;
+unsigned int H2=0;
+
 void setup(void);
+void setupADC(void);
 void contador(void);
-void contadors(void);
-void contadorr(void);
-void antirrebote(void);
-void antirrebote1(void);
+void displays(void);
+void ADC(void);
 
 void main(void){
     setup();
-    while(1){   
+    setupADC();
+    while(1){
+        ADCON0bits.GO = 1;
+        displays();     
     }
 }
 
 void setup(void){
     ANSEL = 0;
-    ANSELH = 0;
+    ANSELH = 0b00100000;
     TRISA = 0; //puerto A como salida
     PORTA = 0;
     TRISBbits.TRISB7 = 1; //puerto b7 como entrada
-    TRISBbits.TRISB6 = 1; //puerto b7 como entrada
+    TRISBbits.TRISB6 = 1; //puerto b6 como entrada
+    TRISBbits.TRISB0 = 1; //puerto b0 como entrada
     PORTB = 0;
     TRISC = 0;
     PORTC = 0;
@@ -58,7 +84,9 @@ void setup(void){
     
     OPTION_REGbits.nRBPU = 0;
     INTCONbits.GIE = 1; //Activar interrupciones globales
+    INTCONbits.PEIE = 1; //Activar interrupciones periféricas
     INTCONbits.RBIE = 1; //Activar interrupciones puertob
+    PIE1bits.ADIE = 1;
     WPUBbits.WPUB7 = 1; // Activar pullup puerto b7
     WPUBbits.WPUB6 = 1; // Activar pullup puerto b6
     IOCBbits.IOCB7 = 1; //activar interrupt on-change b7
@@ -70,47 +98,70 @@ void setup(void){
     OSCCONbits.SCS = 1; //Oscialdor interno
 }
 
+void setupADC(void){
+    ADCON0bits.ADCS1 = 0;
+    ADCON0bits.ADCS0 = 1;       // Fosc/ 8
+    
+    ADCON1bits.VCFG1 = 0;       // Ref VSS
+    ADCON1bits.VCFG0 = 0;       // Ref VDD
+    
+    ADCON1bits.ADFM = 0;        // Justificado hacia izquierda
+    
+    ADCON0bits.CHS3 = 1;
+    ADCON0bits.CHS2 = 1;
+    ADCON0bits.CHS1 = 0;
+    ADCON0bits.CHS0 = 0;        // Canal AN12
+    
+    ADCON0bits.ADON = 1;        // Habilitamos el ADC
+    __delay_us(100);
+}
+
+void ADC(void){
+        PIR1bits.ADIF = 0;
+        dis = ADRESH;
+        __delay_ms(10);  
+}
+
+void displays(void){
+    H1 = (dis%16);
+    H2 = (dis/16);
+    
+    PORTA = nums[H1];
+    PORTCbits.RC0 = 1;
+    PORTCbits.RC1 = 0;
+    
+    __delay_ms(5);
+    
+    PORTA = nums[H2];
+    PORTCbits.RC0 = 0;
+    PORTCbits.RC1 = 1;
+    
+    __delay_ms(5);
+}    
+
 void __interrupt() isr(void){
     if (INTCONbits.RBIF == 1){ //revisar bandera de interrupcion
-        INTCONbits.RBIF = 0; //limpiar bandera 
         contador();
-       
+        INTCONbits.RBIF = 0; //limpiar bandera  
+    }
+    if (PIR1bits.ADIF == 1){
+        ADC();
     }
 }
 
 void contador(void){
-    if (PORTBbits.RB7 == 0){
-        antirrebote();}
-    if (PORTBbits.RB7 == 1) {  
-        contadors();
-    }
     if (PORTBbits.RB6 == 0){
-        antirrebote1();}
-    if (PORTBbits.RB6 == 1) {  
-        contadorr();
-    }
-}
-
-
-
-void contadors(void){
-    if (bandera == 1){
+        bandera = 1;}
+    if (PORTBbits.RB6 == 1 && bandera == 1){
+        __delay_ms(10);
         PORTD++;
         bandera = 0;
     }
-}
-
-void contadorr(void){
-    if (bandera1 == 1){
+    if (PORTBbits.RB7 == 0){
+        bandera1 = 1;}
+    if (PORTBbits.RB7 == 1 && bandera1 == 1){
+        __delay_ms(10);
         PORTD--;
         bandera1 = 0;
     }
-}
-
-void antirrebote(void){
-    bandera = 1;
-}
-
-void antirrebote1(void){
-    bandera1 = 1;
 }
