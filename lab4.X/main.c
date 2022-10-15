@@ -28,10 +28,10 @@
 #include <math.h> //libreria para utilizar exponentes
 #define _XTAL_FREQ 4000000
 
-int bandera=0;
-int bandera1=0;
-int dis=0;
-unsigned char nums[] = {
+int bandera=0; // variable para el antirrebote del botón de incrementar
+int bandera1=0; // variable para el antirrebote del botón de decrementar
+int dis=0; // variable para guardar el valor del ADRESH
+unsigned char nums[] = { //arreglo para valores del display de 7 segementos
     0b00111111, //0
     0b00000110, //1
     0b01011011, //2
@@ -50,43 +50,43 @@ unsigned char nums[] = {
     0b01110001, //F
 };
 
-unsigned int H1=0;
-unsigned int H2=0;
+unsigned int H1=0; // variable para guardar las "unidades" del valor hexadecimal
+unsigned int H2=0; // variable para guardar las "decenas" del valor hexadecimal
 
-void setup(void);
-void setupADC(void);
-void contador(void);
-void displays(void);
-void ADC(void);
+void setup(void); //función de configuración
+void setupADC(void); //función de configuración del ADC
+void contador(void); //función del contador
+void displays(void); //función de multiplexeo de displays y alarma
+void ADC(void); //función de interrupción del ADC
 
 void main(void){
-    setup();
-    setupADC();
-    while(1){
-        ADCON0bits.GO = 1;
-        displays();     
+    setup(); //llamar al setup
+    setupADC(); //llamar la configutacion del ADC 
+    while(1){ //loop principal
+        ADCON0bits.GO = 1; //iniciar conversión ADC
+        displays(); //función de displays      
     }
 }
 
 void setup(void){
-    ANSEL = 0;
-    ANSELH = 0b00100000;
+    ANSEL = 0; // puertos digitales
+    ANSELH = 0b00100000; //puertos digitales excepto el puerto ANS12 o RC0
     TRISA = 0; //puerto A como salida
-    PORTA = 0;
+    PORTA = 0; // limpiar puerto A
     TRISBbits.TRISB7 = 1; //puerto b7 como entrada
     TRISBbits.TRISB6 = 1; //puerto b6 como entrada
     TRISBbits.TRISB0 = 1; //puerto b0 como entrada
-    PORTB = 0;
-    TRISC = 0;
-    PORTC = 0;
-    TRISD = 0;
-    PORTD = 0;
+    PORTB = 0; // limpiar puerto B
+    TRISC = 0; // puerto C como salida
+    PORTC = 0; // limpiar puerto C
+    TRISD = 0; // puerto D como salida
+    PORTD = 0; // limpiar puerto D
     
     OPTION_REGbits.nRBPU = 0;
     INTCONbits.GIE = 1; //Activar interrupciones globales
     INTCONbits.PEIE = 1; //Activar interrupciones periféricas
-    INTCONbits.RBIE = 1; //Activar interrupciones puertob
-    PIE1bits.ADIE = 1;
+    INTCONbits.RBIE = 1; //Activar interrupciones puerto B
+    PIE1bits.ADIE = 1; // Habiliar interrupcion del conversor ADC
     WPUBbits.WPUB7 = 1; // Activar pullup puerto b7
     WPUBbits.WPUB6 = 1; // Activar pullup puerto b6
     IOCBbits.IOCB7 = 1; //activar interrupt on-change b7
@@ -99,69 +99,75 @@ void setup(void){
 }
 
 void setupADC(void){
-    ADCON0bits.ADCS1 = 0;
-    ADCON0bits.ADCS0 = 1;       // Fosc/ 8
+    ADCON0bits.ADCS1 = 0; // Fosc/ 8        
+    ADCON0bits.ADCS0 = 1; // =======      
     
-    ADCON1bits.VCFG1 = 0;       // Ref VSS
-    ADCON1bits.VCFG0 = 0;       // Ref VDD
+    ADCON1bits.VCFG1 = 0; // Referencia VSS (0 Volts)
+    ADCON1bits.VCFG0 = 0; // Referencia VDD (3.3 Volts)
     
-    ADCON1bits.ADFM = 0;        // Justificado hacia izquierda
+    ADCON1bits.ADFM = 0;  // Justificado hacia izquierda
     
-    ADCON0bits.CHS3 = 1;
+    ADCON0bits.CHS3 = 1; // Canal AN12
     ADCON0bits.CHS2 = 1;
     ADCON0bits.CHS1 = 0;
-    ADCON0bits.CHS0 = 0;        // Canal AN12
+    ADCON0bits.CHS0 = 0;        
     
-    ADCON0bits.ADON = 1;        // Habilitamos el ADC
-    __delay_us(100);
+    ADCON0bits.ADON = 1; // Habilitamos el ADC
+    __delay_us(100); //delay de 100 us
 }
 
 void ADC(void){
-        PIR1bits.ADIF = 0;
-        dis = ADRESH;
-        __delay_ms(10);  
+        PIR1bits.ADIF = 0; //limpiar bandera del conversor ADC
+        dis = ADRESH; //guardar variables del ADRESH 
+        __delay_ms(10); // delay de 10 ms
 }
 
-void displays(void){
-    H1 = (dis%16);
-    H2 = (dis/16);
+void displays(void){ // alarma (POST-LAB)
+    if (dis >= PORTD){ //revisar si el valor del ADRESH es mayor al Puerto D
+        PORTCbits.RC2 = 1; //encender alarma
+    }
+    else { //revisar si el valor del ADRESH es mayor al Puerto D
+        PORTCbits.RC2 = 0;    } // apagar alarma
     
-    PORTA = nums[H1];
-    PORTCbits.RC0 = 1;
+    H1 = (dis%16); //convertir el valor de ADRESH a hexadecimal
+    H2 = (dis/16); //convertir el valor de ADRESH a hexadecimal
+    
+    PORTA = nums[H1]; //mostrar unidades en el puerto A (display)
+    PORTCbits.RC0 = 1; //multiplexeo
     PORTCbits.RC1 = 0;
     
-    __delay_ms(5);
+    __delay_ms(5); //delay de 5 ms
     
-    PORTA = nums[H2];
-    PORTCbits.RC0 = 0;
+    PORTA = nums[H2]; //mostrar decenas en el puerto A (display)
+    PORTCbits.RC0 = 0; //multiplexeo
     PORTCbits.RC1 = 1;
     
-    __delay_ms(5);
+    __delay_ms(5); //delay de 5 ms
 }    
 
-void __interrupt() isr(void){
-    if (INTCONbits.RBIF == 1){ //revisar bandera de interrupcion
-        contador();
+void __interrupt() isr(void){ //interrupciones
+    if (INTCONbits.RBIF == 1){ //revisar bandera de interrupcion del puerto B
+        contador(); // llamar al contador
         INTCONbits.RBIF = 0; //limpiar bandera  
     }
-    if (PIR1bits.ADIF == 1){
-        ADC();
+    if (PIR1bits.ADIF == 1){ //revisar bandera de interrupcion del conversor ADC
+        ADC(); //llamar a la funcion ADC
     }
 }
 
-void contador(void){
-    if (PORTBbits.RB6 == 0){
-        bandera = 1;}
-    if (PORTBbits.RB6 == 1 && bandera == 1){
+void contador(void){ 
+    if (PORTBbits.RB6 == 0){ //revisar si se presiono el botón de incrementar
+        bandera = 1;} //activar bandera
+    if (PORTBbits.RB6 == 1 && bandera == 1){ //revisar si se dejo de presionar el botón y la bandera está en 1
         __delay_ms(10);
-        PORTD++;
-        bandera = 0;
+        PORTD++; //incrementar
+        bandera = 0; // limpiar bandera
     }
-    if (PORTBbits.RB7 == 0){
-        bandera1 = 1;}
-    if (PORTBbits.RB7 == 1 && bandera1 == 1){
+    if (PORTBbits.RB7 == 0){ //revisar si se presiono el botón de decrementar
+        bandera1 = 1;} //activar bandera
+    if (PORTBbits.RB7 == 1 && bandera1 == 1){ //revisar si se dejo de presionar el botón y la bandera está en 1
         __delay_ms(10);
-        PORTD--;
-        bandera1 = 0;
+        PORTD--; //decrementar el puerto
+        bandera1 = 0; // limpiar bandera
     }
 }
