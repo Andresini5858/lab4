@@ -92,9 +92,9 @@ void setup(void){
     IOCBbits.IOCB7 = 1; //activar interrupt on-change b7
     IOCBbits.IOCB6 = 1; //activar interrupt on-change b6
     
-    OSCCONbits.IRCF0 = 1; //Oscilador a 4MHz
+    OSCCONbits.IRCF0 = 0; //Oscilador a 4MHz
     OSCCONbits.IRCF1 = 1;
-    OSCCONbits.IRCF0 = 0;
+    OSCCONbits.IRCF2 = 1;
     OSCCONbits.SCS = 1; //Oscialdor interno
 }
 
